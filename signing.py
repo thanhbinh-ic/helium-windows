@@ -101,8 +101,11 @@ def parse_args():
                 'AZURE_SIGNING_ENDPOINT', 'AZURE_SIGNING_ACCOUNT',
                 'AZURE_SIGNING_CERTIFICATE_NAME')
     missing = [name for name in required if not os.environ.get(name)]
-    if missing:
+    # Fork builds have no Azure signing credentials: package unsigned instead
+    # of failing. Only a partially configured signing setup is an error.
+    if missing and len(missing) != len(required):
         parser.error('Missing environment variables: ' + ', '.join(missing))
+    args.no_sign = len(missing) == len(required)
 
     return args
 
@@ -128,6 +131,17 @@ def write_signing_metadata(work):
 def main():
     args = parse_args()
     work = package.stage_build(args.build_outputs, args.seven_zip, args.arch)
+    if args.no_sign:
+        # No Azure signing credentials (e.g. fork builds): package unsigned.
+        expected = {'payload': package.inventory(work / 'payload'),
+                    'portable': package.inventory(work / 'portable'),
+                    'setup': package.digest(work / 'setup.exe')}
+        nsis, mini, portable = package.build_packages(work, args.build_outputs,
+                                                      args.seven_zip)
+        package.verify_packages(work, args.seven_zip, nsis, mini, portable,
+                                expected)
+        emit('artifacts', work / 'artifacts')
+        return
     metadata = write_signing_metadata(work)
     sign_staged_binaries(work, args, metadata)
 
