@@ -1,0 +1,19 @@
+--- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
+@@ -2388,6 +2388,16 @@ gfx::Rect ToolbarView::GetCenteredLocationBarBounds(gfx::Rect bounds,
+                                                     int toolbar_width) const {
+-  if (IsCompactLayout() || display_mode_ != DisplayMode::kNormal ||
++  // In Compact layout, right-align the location bar instead of centering it:
++  // keep the compact preferred width and dock its right edge against the
++  // toolbar actions (extension icons). Other layouts are untouched.
++  if (IsCompactLayout()) {
++    const int right_aligned_width =
++        std::clamp(kPreferredCompactWidth, 0, bounds.width());
++    bounds.set_x(bounds.right() - right_aligned_width);
++    bounds.set_width(right_aligned_width);
++    return bounds;
++  }
++  if (display_mode_ != DisplayMode::kNormal ||
+       !location_bar_is_centered_.GetValue()) {
+     return bounds;
+   }
