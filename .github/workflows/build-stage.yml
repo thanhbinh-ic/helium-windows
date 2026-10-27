@@ -45,6 +45,24 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+      - name: Free disk space
+        shell: pwsh
+        run: |
+          Get-PSDrive C | Select-Object Name, Used, Free
+          $paths = @(
+            $env:ANDROID_HOME,
+            'C:\Android',
+            'C:\Program Files (x86)\Android',
+            'C:\Program Files\dotnet',
+            'C:\hostedtoolcache\CodeQL'
+          )
+          foreach ($p in $paths) {
+            if ($p -and (Test-Path $p)) {
+              Write-Host "Removing $p"
+              Remove-Item $p -Recurse -Force -ErrorAction SilentlyContinue
+            }
+          }
+          Get-PSDrive C | Select-Object Name, Used, Free
       - uses: ./.github/actions/prepare-environment
       - uses: ./.github/actions/stage
         id: stage
